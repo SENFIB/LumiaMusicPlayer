@@ -16,6 +16,11 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
+    - name: List Repository Files (Debug)
+      shell: powershell
+      run: |
+        Get-ChildItem -Recurse | Select-Object FullName
+
     - name: Create Test Certificate
       shell: powershell
       run: |
@@ -28,16 +33,10 @@ jobs:
         Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
         Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
 
-    - name: Build ARM Appx
-      shell: cmd
+    - name: Find Project and Build ARM Appx
+      shell: powershell
       run: |
-        msbuild LumiaMusicPlayer.sln /p:Configuration=Release /p:Platform=ARM /p:AppxPackageDir="%GITHUB_WORKSPACE%\Output\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PackageCertificateKeyFile="%GITHUB_WORKSPACE%\LumiaDev.pfx" /p:PackageCertificatePassword="Lumia1234" /p:AppxPackageSigningEnabled=true
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Lumia640XL-App
-        path: |
-          Output\**\*.appx
-          Output\**\*.cer
-          LumiaDev.cer
+        $proj = (Get-ChildItem -Recurse -Filter "*.csproj" | Select-Object -First 1).FullName
+        if (-not $proj) {
+            Write-Error "فایل با پسوند .csproj در ریپازیتوری پیدا نشد! بررسی کنید که پسوند فایل اشتباهاً .txt نشده باشد."
+            exit 
