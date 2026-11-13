@@ -40,7 +40,7 @@ jobs:
             $bmp.Dispose()
         }
 
-    - name: Create Official AppX Code-Signing Certificate
+    - name: Create Official Code-Signing Certificate
       shell: powershell
       run: |
         $cert = New-SelfSignedCertificate -Type Custom `
@@ -61,7 +61,7 @@ jobs:
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
         msbuild $projectFile /t:Restore /p:Platform=ARM
 
-    - name: Build Standalone ARM Appx
+    - name: Build Standalone Native ARM Appx
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
@@ -71,7 +71,7 @@ jobs:
             "/p:Platform=ARM",
             "/p:TargetPlatformVersion=10.0.17763.0",
             "/p:TargetPlatformMinVersion=10.0.14393.0",
-            "/p:UseDotNetNativeToolchain=false",
+            "/p:UseDotNetNativeToolchain=true",
             "/p:AppxPackageDir=$env:GITHUB_WORKSPACE\Output\",
             "/p:AppxBundle=Never",
             "/p:UapAppxPackageBuildMode=SideloadOnly",
@@ -81,20 +81,14 @@ jobs:
         )
         msbuild @params
 
-    - name: Prepare Clean Release Package
+    - name: Prepare Clean Release
       shell: powershell
       run: |
         New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\ReleasePackage" -Force
-        New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies" -Force
 
         $mainAppx = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -notmatch "Dependencies" } | Select-Object -First 1
         Copy-Item $mainAppx.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaMusicPlayer.appx"
         Copy-Item "$env:GITHUB_WORKSPACE\LumiaDev.cer" -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaDev.cer"
-
-        $depFiles = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -match "Dependencies" }
-        foreach ($d in $depFiles) {
-            Copy-Item $d.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies\"
-        }
 
     - name: Upload Clean Artifact
       uses: actions/upload-artifact@v4
