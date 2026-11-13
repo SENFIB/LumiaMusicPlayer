@@ -51,9 +51,9 @@ jobs:
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
-        msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=10.0.17763.0
+        msbuild $projectFile /t:Restore /p:Platform=ARM
 
-    - name: Build and Package ARM Appx
+    - name: Build AppxBundle for Lumia
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
@@ -62,10 +62,11 @@ jobs:
             "/p:Configuration=Release",
             "/p:Platform=ARM",
             "/p:TargetPlatformVersion=10.0.17763.0",
-            "/p:TargetPlatformMinVersion=10.0.14393.0",
+            "/p:TargetPlatformMinVersion=10.0.10240.0",
             "/p:UseDotNetNativeToolchain=false",
             "/p:AppxPackageDir=$env:GITHUB_WORKSPACE\Output\",
-            "/p:AppxBundle=Never",
+            "/p:AppxBundle=Always",
+            "/p:AppxBundlePlatforms=ARM",
             "/p:UapAppxPackageBuildMode=SideloadOnly",
             "/p:PackageCertificateKeyFile=$env:GITHUB_WORKSPACE\LumiaDev.pfx",
             "/p:PackageCertificatePassword=Lumia1234",
@@ -73,26 +74,26 @@ jobs:
         )
         msbuild @params
 
-    - name: Organize Clean Output Package
+    - name: Prepare Clean Release
       shell: powershell
       run: |
         New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\ReleasePackage" -Force
         New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies" -Force
 
-        # کپی فایل اصلی برنامه
-        $mainAppx = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -notmatch "Dependencies" } | Select-Object -First 1
-        Copy-Item $mainAppx.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaMusicPlayer.appx"
+        # کپی فایل باندل اصلی
+        $bundle = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appxbundle" -Recurse | Select-Object -First 1
+        Copy-Item $bundle.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaMusicPlayer.appxbundle"
 
-        # کپی گواهی سرتیفیکیت
+        # کپی سرتیفیکیت
         Copy-Item "$env:GITHUB_WORKSPACE\LumiaDev.cer" -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaDev.cer"
 
-        # کپی پیش‌نیازهای حیاتی ویندوز فون
-        $depFiles = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -match "Dependencies" }
-        foreach ($dep in $depFiles) {
-            Copy-Item $dep.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies\"
+        # کپی پیش‌نیازها
+        $deps = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -match "Dependencies" }
+        foreach ($d in $deps) {
+            Copy-Item $d.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies\"
         }
 
-    - name: Upload Clean Artifact
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Lumia640XL-App
