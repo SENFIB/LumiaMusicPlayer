@@ -39,11 +39,16 @@ jobs:
         Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
         Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
 
-    - name: Restore NuGet Packages
+    - name: Detect Windows SDK and Restore
       shell: powershell
       run: |
+        $sdkDir = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
+        $installedSdk = (Get-ChildItem $sdkDir | Sort-Object Name -Descending | Select-Object -First 1).Name
+        Write-Host "Using Windows 10 SDK: $installedSdk"
+        echo "TARGET_SDK=$installedSdk" >> $env:GITHUB_ENV
+        
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
-        msbuild $projectFile /t:Restore /p:Platform=ARM
+        msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=$installedSdk
 
     - name: Build ARM Appx
       shell: powershell
@@ -53,6 +58,9 @@ jobs:
             $projectFile,
             "/p:Configuration=Release",
             "/p:Platform=ARM",
+            "/p:TargetPlatformVersion=$env:TARGET_SDK",
+            "/p:TargetPlatformMinVersion=10.0.14393.0",
+            "/p:UseDotNetNativeToolchain=false",
             "/p:AppxPackageDir=$env:GITHUB_WORKSPACE\Output\",
             "/p:AppxBundle=Never",
             "/p:UapAppxPackageBuildMode=SideloadOnly",
