@@ -47,18 +47,13 @@ jobs:
         Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
         Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
 
-    - name: Select ARM-Compatible SDK and Restore
+    - name: Restore NuGet Packages
       shell: powershell
       run: |
-        $sdkDir = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
-        $compatibleSdk = (Get-ChildItem $sdkDir | Where-Object { [version]$_.Name -le [version]"10.0.22621.0" } | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1).Name
-        Write-Host "Selected ARM Compatible SDK: $compatibleSdk"
-        echo "TARGET_SDK=$compatibleSdk" >> $env:GITHUB_ENV
-        
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
-        msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=$compatibleSdk
+        msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=10.0.17763.0
 
-    - name: Build and Package ARM Appx with Native Toolchain
+    - name: Build and Package ARM Appx
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
@@ -66,9 +61,9 @@ jobs:
             $projectFile,
             "/p:Configuration=Release",
             "/p:Platform=ARM",
-            "/p:TargetPlatformVersion=$env:TARGET_SDK",
+            "/p:TargetPlatformVersion=10.0.17763.0",
             "/p:TargetPlatformMinVersion=10.0.14393.0",
-            "/p:UseDotNetNativeToolchain=true",
+            "/p:UseDotNetNativeToolchain=false",
             "/p:AppxPackageDir=$env:GITHUB_WORKSPACE\Output\",
             "/p:AppxBundle=Never",
             "/p:UapAppxPackageBuildMode=SideloadOnly",
@@ -78,10 +73,27 @@ jobs:
         )
         msbuild @params
 
-    - name: Upload Artifact
+    - name: Organize Clean Output Package
+      shell: powershell
+      run: |
+        New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\ReleasePackage" -Force
+        New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies" -Force
+
+        # کپی فایل اصلی برنامه
+        $mainAppx = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -notmatch "Dependencies" } | Select-Object -First 1
+        Copy-Item $mainAppx.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaMusicPlayer.appx"
+
+        # کپی گواهی سرتیفیکیت
+        Copy-Item "$env:GITHUB_WORKSPACE\LumiaDev.cer" -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaDev.cer"
+
+        # کپی پیش‌نیازهای حیاتی ویندوز فون
+        $depFiles = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -match "Dependencies" }
+        foreach ($dep in $depFiles) {
+            Copy-Item $dep.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies\"
+        }
+
+    - name: Upload Clean Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Lumia640XL-App
-        path: |
-          Output\**\*
-          LumiaDev.cer
+        path: ReleasePackage/**
