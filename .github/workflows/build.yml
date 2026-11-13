@@ -16,19 +16,28 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Setup Dummy Logo (If Missing)
+    - name: Generate Exact Required Logos
       shell: powershell
       run: |
         $proj = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).Directory.FullName
         $assetDir = Join-Path $proj "Assets"
         if (-not (Test-Path $assetDir)) { New-Item -ItemType Directory -Path $assetDir -Force }
-        $logoPath = Join-Path $assetDir "StoreLogo.png"
-        if (-not (Test-Path $logoPath)) {
-            Add-Type -AssemblyName System.Drawing
-            $bmp = New-Object System.Drawing.Bitmap 150, 150
-            $bmp.Save($logoPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        Add-Type -AssemblyName System.Drawing
+
+        $requiredLogos = @{
+            "Square44x44Logo.png"   = @(44, 44)
+            "Square150x150Logo.png" = @(150, 150)
+            "StoreLogo.png"         = @(50, 50)
+        }
+
+        foreach ($name in $requiredLogos.Keys) {
+            $path = Join-Path $assetDir $name
+            $w = $requiredLogos[$name][0]
+            $h = $requiredLogos[$name][1]
+            $bmp = New-Object System.Drawing.Bitmap $w, $h
+            $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
             $bmp.Dispose()
-            Write-Host "Created placeholder StoreLogo.png"
+            Write-Host "Created valid image: $name ($w x $h)"
         }
 
     - name: Create Test Certificate
@@ -43,7 +52,6 @@ jobs:
       shell: powershell
       run: |
         $sdkDir = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
-        # پیدا کردن بهترین SDK که کمتر یا مساوی با 22621 باشه تا پردازنده لومیا ساپورت بشه
         $compatibleSdk = (Get-ChildItem $sdkDir | Where-Object { [version]$_.Name -le [version]"10.0.22621.0" } | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1).Name
         Write-Host "Selected ARM Compatible SDK: $compatibleSdk"
         echo "TARGET_SDK=$compatibleSdk" >> $env:GITHUB_ENV
@@ -51,7 +59,7 @@ jobs:
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
         msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=$compatibleSdk
 
-    - name: Build ARM Appx
+    - name: Build and Package ARM Appx
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
