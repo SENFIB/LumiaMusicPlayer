@@ -1,0 +1,43 @@
+name: Build Lumia ARM
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Create Test Certificate
+      shell: powershell
+      run: |
+        $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=LumiaDev" `
+                -KeyUsage DigitalSignature -FriendlyName "LumiaDevCert" `
+                -CertStoreLocation "Cert:\LocalMachine\My" `
+                -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+        
+        $pfxPassword = ConvertTo-SecureString -String "Lumia1234" -Force -AsPlainText
+        Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
+        Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
+
+    - name: Build ARM Appx
+      shell: cmd
+      run: |
+        msbuild LumiaMusicPlayer.sln /p:Configuration=Release /p:Platform=ARM /p:AppxPackageDir="%GITHUB_WORKSPACE%\Output\" /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly /p:PackageCertificateKeyFile="%GITHUB_WORKSPACE%\LumiaDev.pfx" /p:PackageCertificatePassword="Lumia1234" /p:AppxPackageSigningEnabled=true
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Lumia640XL-App
+        path: |
+          Output\**\*.appx
+          Output\**\*.cer
+          LumiaDev.cer
