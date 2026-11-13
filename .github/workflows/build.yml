@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
     - name: Checkout Code
@@ -39,16 +39,17 @@ jobs:
         Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
         Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
 
-    - name: Detect Windows SDK and Restore
+    - name: Select ARM-Compatible SDK and Restore
       shell: powershell
       run: |
         $sdkDir = "C:\Program Files (x86)\Windows Kits\10\Platforms\UAP"
-        $installedSdk = (Get-ChildItem $sdkDir | Sort-Object Name -Descending | Select-Object -First 1).Name
-        Write-Host "Using Windows 10 SDK: $installedSdk"
-        echo "TARGET_SDK=$installedSdk" >> $env:GITHUB_ENV
+        # پیدا کردن بهترین SDK که کمتر یا مساوی با 22621 باشه تا پردازنده لومیا ساپورت بشه
+        $compatibleSdk = (Get-ChildItem $sdkDir | Where-Object { [version]$_.Name -le [version]"10.0.22621.0" } | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1).Name
+        Write-Host "Selected ARM Compatible SDK: $compatibleSdk"
+        echo "TARGET_SDK=$compatibleSdk" >> $env:GITHUB_ENV
         
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
-        msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=$installedSdk
+        msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=$compatibleSdk
 
     - name: Build ARM Appx
       shell: powershell
