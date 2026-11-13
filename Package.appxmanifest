@@ -11,7 +11,7 @@
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.14393.0" MaxVersionTested="10.0.17763.0" />
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.14393.0" MaxVersionTested="10.0.15063.0" />
   </Dependencies>
   <Resources>
     <Resource Language="x-generate"/>
@@ -22,6 +22,7 @@
                           BackgroundColor="transparent" 
                           Square150x150Logo="Assets\Square150x150Logo.png" 
                           Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>
   </Applications>
