@@ -40,15 +40,15 @@ jobs:
             $bmp.Dispose()
         }
 
-    - name: Create True Root CA Code-Signing Certificate
+    - name: Create Official AppX Code-Signing Certificate
       shell: powershell
       run: |
         $cert = New-SelfSignedCertificate -Type Custom `
                 -Subject "CN=LumiaDev" `
-                -KeyUsage DigitalSignature, CertSign `
-                -KeyUsageProperty All `
-                -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}ca=1") `
+                -KeyUsage DigitalSignature `
+                -FriendlyName "LumiaDev" `
                 -CertStoreLocation "Cert:\CurrentUser\My" `
+                -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3") `
                 -NotAfter (Get-Date).AddYears(5)
         
         $pfxPassword = ConvertTo-SecureString -String "Lumia1234" -Force -AsPlainText
@@ -91,8 +91,8 @@ jobs:
         Copy-Item $mainAppx.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaMusicPlayer.appx"
         Copy-Item "$env:GITHUB_WORKSPACE\LumiaDev.cer" -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\LumiaDev.cer"
 
-        $deps = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -match "Dependencies" }
-        foreach ($d in $deps) {
+        $depFiles = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\Output" -Filter "*.appx" -Recurse | Where-Object { $_.FullName -match "Dependencies" }
+        foreach ($d in $depFiles) {
             Copy-Item $d.FullName -Destination "$env:GITHUB_WORKSPACE\ReleasePackage\Dependencies\"
         }
 
