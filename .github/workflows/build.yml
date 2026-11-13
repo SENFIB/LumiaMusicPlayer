@@ -16,27 +16,39 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: List Repository Files (Debug)
-      shell: powershell
-      run: |
-        Get-ChildItem -Recurse | Select-Object FullName
-
     - name: Create Test Certificate
       shell: powershell
       run: |
-        $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=LumiaDev" `
-                -KeyUsage DigitalSignature -FriendlyName "LumiaDevCert" `
-                -CertStoreLocation "Cert:\LocalMachine\My" `
-                -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-        
+        $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=LumiaDev" -KeyUsage DigitalSignature -FriendlyName "LumiaDevCert" -CertStoreLocation "Cert:\LocalMachine\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
         $pfxPassword = ConvertTo-SecureString -String "Lumia1234" -Force -AsPlainText
         Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
         Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
 
-    - name: Find Project and Build ARM Appx
+    - name: Build ARM Appx
       shell: powershell
       run: |
-        $proj = (Get-ChildItem -Recurse -Filter "*.csproj" | Select-Object -First 1).FullName
-        if (-not $proj) {
-            Write-Error "فایل با پسوند .csproj در ریپازیتوری پیدا نشد! بررسی کنید که پسوند فایل اشتباهاً .txt نشده باشد."
-            exit 
+        $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
+        Write-Host "Found project file: $projectFile"
+        
+        $params = @(
+            $projectFile,
+            "/p:Configuration=Release",
+            "/p:Platform=ARM",
+            "/p:AppxPackageDir=$env:GITHUB_WORKSPACE\Output\",
+            "/p:AppxBundle=Never",
+            "/p:UapAppxPackageBuildMode=SideloadOnly",
+            "/p:PackageCertificateKeyFile=$env:GITHUB_WORKSPACE\LumiaDev.pfx",
+            "/p:PackageCertificatePassword=Lumia1234",
+            "/p:AppxPackageSigningEnabled=true"
+        )
+        
+        msbuild @params
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Lumia640XL-App
+        path: |
+          Output\**\*.appx
+          Output\**\*.cer
+          LumiaDev.cer
