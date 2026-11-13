@@ -16,6 +16,21 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
+    - name: Setup Dummy Logo (If Missing)
+      shell: powershell
+      run: |
+        $proj = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).Directory.FullName
+        $assetDir = Join-Path $proj "Assets"
+        if (-not (Test-Path $assetDir)) { New-Item -ItemType Directory -Path $assetDir -Force }
+        $logoPath = Join-Path $assetDir "StoreLogo.png"
+        if (-not (Test-Path $logoPath)) {
+            Add-Type -AssemblyName System.Drawing
+            $bmp = New-Object System.Drawing.Bitmap 150, 150
+            $bmp.Save($logoPath, [System.Drawing.Imaging.ImageFormat]::Png)
+            $bmp.Dispose()
+            Write-Host "Created placeholder StoreLogo.png"
+        }
+
     - name: Create Test Certificate
       shell: powershell
       run: |
@@ -24,12 +39,16 @@ jobs:
         Export-PfxCertificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.pfx" -Password $pfxPassword
         Export-Certificate -Cert $cert -FilePath "$env:GITHUB_WORKSPACE\LumiaDev.cer"
 
+    - name: Restore NuGet Packages
+      shell: powershell
+      run: |
+        $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
+        msbuild $projectFile /t:Restore /p:Platform=ARM
+
     - name: Build ARM Appx
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
-        Write-Host "Found project file: $projectFile"
-        
         $params = @(
             $projectFile,
             "/p:Configuration=Release",
@@ -41,7 +60,6 @@ jobs:
             "/p:PackageCertificatePassword=Lumia1234",
             "/p:AppxPackageSigningEnabled=true"
         )
-        
         msbuild @params
 
     - name: Upload Artifact
