@@ -37,7 +37,6 @@ jobs:
             $bmp = New-Object System.Drawing.Bitmap $w, $h
             $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
             $bmp.Dispose()
-            Write-Host "Created valid image: $name ($w x $h)"
         }
 
     - name: Create Test Certificate
@@ -59,7 +58,7 @@ jobs:
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
         msbuild $projectFile /t:Restore /p:Platform=ARM /p:TargetPlatformVersion=$compatibleSdk
 
-    - name: Build and Package ARM Appx
+    - name: Build and Package ARM Appx with Native Toolchain
       shell: powershell
       run: |
         $projectFile = (Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -First 1).FullName
@@ -69,7 +68,7 @@ jobs:
             "/p:Platform=ARM",
             "/p:TargetPlatformVersion=$env:TARGET_SDK",
             "/p:TargetPlatformMinVersion=10.0.14393.0",
-            "/p:UseDotNetNativeToolchain=false",
+            "/p:UseDotNetNativeToolchain=true",
             "/p:AppxPackageDir=$env:GITHUB_WORKSPACE\Output\",
             "/p:AppxBundle=Never",
             "/p:UapAppxPackageBuildMode=SideloadOnly",
@@ -84,6 +83,5 @@ jobs:
       with:
         name: Lumia640XL-App
         path: |
-          Output\**\*.appx
-          Output\**\*.cer
+          Output\**\*
           LumiaDev.cer
