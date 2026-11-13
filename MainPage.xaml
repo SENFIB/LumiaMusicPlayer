@@ -5,11 +5,11 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Padding="20">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch" Spacing="15">
-            <TextBlock Text="🎵 لومیا موزیک پلیر" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
-            <TextBlock x:Name="TxtStatus" Text="آهنگی در حال پخش نیست" FontSize="14" Foreground="Gray" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch">
+            <TextBlock Text="🎵 لومیا موزیک پلیر" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+            <TextBlock x:Name="TxtStatus" Text="آهنگی در حال پخش نیست" FontSize="14" Foreground="Gray" HorizontalAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,20"/>
             
-            <Button Content="📁 انتخاب آهنگ از حافظه" Click="BtnPick_Click" HorizontalAlignment="Stretch" Height="50" Background="#0078D7"/>
+            <Button Content="📁 انتخاب آهنگ از حافظه" Click="BtnPick_Click" HorizontalAlignment="Stretch" Height="50" Background="#0078D7" Margin="0,0,0,20"/>
 
             <MediaElement x:Name="Player" AreTransportControlsEnabled="True" AutoPlay="True" Height="80"/>
         </StackPanel>
